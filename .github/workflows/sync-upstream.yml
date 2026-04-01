@@ -1,0 +1,29 @@
+name: Sync with Mihon upstream
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # Chaque jour à minuit
+  workflow_dispatch: # Lancement manuel possible
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Sync with upstream
+        run: |
+          git remote add upstream https://github.com/mihonapp/mihon.git
+          git fetch upstream
+          git merge upstream/main --no-edit
+          git push origin main
