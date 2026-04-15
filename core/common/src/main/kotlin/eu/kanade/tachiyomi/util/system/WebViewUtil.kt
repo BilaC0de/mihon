@@ -57,8 +57,8 @@ object WebViewUtil {
     }
 
     fun spoofedPackageName(context: Context): String {
-        return runCatching { context.packageManager.getPackageInfo(CHROME_PACKAGE, 0) }
-            .recoverCatching { context.packageManager.getPackageInfo(SYSTEM_SETTINGS_PACKAGE, 0) }
+        return runCatching { context.packageManager.getPackageInfo(SYSTEM_SETTINGS_PACKAGE, 0) }
+            .recoverCatching { context.packageManager.getPackageInfo(CHROME_PACKAGE, 0) }
             .recoverCatching { context.packageManager.getPackageInfo(YOUTUBE_FOR_TV_PACKAGE, 0) }
             .fold(
                 onSuccess = { it.packageName },

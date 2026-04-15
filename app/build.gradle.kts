@@ -271,7 +271,7 @@ dependencies {
     implementation(libs.reorderable)
     implementation(libs.bundles.markdown)
     implementation(libs.materialKolor)
-
+    implementation(libs.androidx.webkit)
     // Logging
     implementation(libs.logcat)
 
