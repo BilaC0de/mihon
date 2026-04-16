@@ -1,0 +1,95 @@
+name: Sync upstream release & build modded APK
+
+concurrency:
+  group: sync-build
+  cancel-in-progress: true
+on:
+  schedule:
+    - cron: '0 */12 * * *' # check toutes les 12h
+  workflow_dispatch:
+
+jobs:
+  check-release:
+    runs-on: ubuntu-latest
+    outputs:
+      updated: ${{ steps.check.outputs.updated }}
+
+    steps:
+      - name: Check latest Mihon release
+        id: check
+        run: |
+          LATEST=$(curl -s https://api.github.com/repos/mihonapp/mihon/releases/latest | jq -r .tag_name)
+          echo "Latest: $LATEST"
+
+          if [ -f last_release.txt ]; then
+            OLD=$(cat last_release.txt)
+          else
+            OLD=""
+          fi
+
+          if [ "$LATEST" != "$OLD" ]; then
+            echo "$LATEST" > last_release.txt
+            echo "updated=true" >> $GITHUB_OUTPUT
+          else
+            echo "updated=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload state
+        uses: actions/upload-artifact@v3
+        with:
+          name: release-state
+          path: last_release.txt
+
+  sync-and-build:
+    needs: check-release
+    if: needs.check-release.outputs.updated == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Git config
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+
+      - name: Add upstream (Mihon)
+        run: |
+          git remote add upstream https://github.com/mihonapp/mihon.git
+          git fetch upstream
+
+      # 🟢 1. Sync main avec Mihon
+      - name: Update main from upstream
+        run: |
+          git checkout main
+          git reset --hard upstream/main
+          git push origin main --force
+
+      # 🟣 2. Rebase TA branche
+      - name: Rebase mod branch
+        run: |
+          git checkout fix/webviewx-requested-with
+          git rebase main
+
+      # 🔴 3. Push ta branche
+      - name: Push mod branch
+        run: |
+          git push origin fix/webviewx-requested-with --force
+
+      # 🟡 4. Build APK
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+
+      - name: Build APK
+        run: ./gradlew assembleRelease
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v3
+        with:
+          name: mihon-modded-apk
+          path: app/build/outputs/apk/release/*.apk
